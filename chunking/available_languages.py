@@ -86,4 +86,10 @@ def get_availiable_language():
     except ImportError:
         logger.debug("tree-sitter-markdown not installed")
 
+    try:
+        import tree_sitter_elixir as tselixir
+        res['elixir'] = Language(tselixir.language())
+    except ImportError:
+        logger.debug("tree-sitter-elixir not installed")
+
     return res

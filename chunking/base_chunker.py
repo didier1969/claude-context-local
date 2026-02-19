@@ -145,13 +145,13 @@ class LanguageChunker(ABC):
                 )
                 chunks.append(chunk)
 
-                # For classes, continue traversing to find methods
-                # For other chunked nodes, stop traversal
-                if node.type in ['class_definition', 'class_declaration']:
-                    # Pass class info to children
+                # For containers (classes, Elixir defmodule, etc.), continue
+                # traversing to find nested definitions
+                if node.type in ['class_definition', 'class_declaration', 'call']:
+                    parent_type = 'module' if node.type == 'call' else 'class'
                     class_info = {
                         'parent_name': metadata.get('name'),
-                        'parent_type': 'class'
+                        'parent_type': parent_type,
                     }
                     for child in node.children:
                         traverse(child, depth + 1, class_info)
