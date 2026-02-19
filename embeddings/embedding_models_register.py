@@ -1,6 +1,13 @@
 """Embedding models registry."""
-from embeddings.gemma import GemmaEmbeddingModel
+from embeddings.ollama import OllamaEmbeddingModel
 
 AVAILIABLE_MODELS = {
-    "google/embeddinggemma-300m": GemmaEmbeddingModel,
+    "ollama/nomic-embed-text": OllamaEmbeddingModel,
 }
+
+# Gemma requires sentence_transformers — register only if available
+try:
+    from embeddings.gemma import GemmaEmbeddingModel
+    AVAILIABLE_MODELS["google/embeddinggemma-300m"] = GemmaEmbeddingModel
+except ImportError:
+    pass
