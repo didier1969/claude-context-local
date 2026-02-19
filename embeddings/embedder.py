@@ -23,7 +23,7 @@ class CodeEmbedder:
 
     def __init__(
         self,
-        model_name: str = "google/embeddinggemma-300m",
+        model_name: str = "ollama/nomic-embed-text",
         cache_dir: Optional[str] = None,
         device: str = "auto"
     ):
@@ -167,17 +167,23 @@ class CodeEmbedder:
 
         self._logger.info(f"Generating embeddings for {len(chunks)} chunks")
 
-        # Process in batches
+        # Process in batches — resilient to individual batch failures
+        failed_batches = 0
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i:i + batch_size]
             batch_contents = [self.create_embedding_content(chunk) for chunk in batch]
 
-            # Generate embeddings for batch
-            batch_embeddings = self._model.encode(
-                batch_contents,
-                prompt_name="Retrieval-document",
-                show_progress_bar=False
-            )
+            try:
+                # Generate embeddings for batch
+                batch_embeddings = self._model.encode(
+                    batch_contents,
+                    prompt_name="Retrieval-document",
+                    show_progress_bar=False
+                )
+            except Exception as e:
+                failed_batches += 1
+                self._logger.warning(f"Batch {i//batch_size} failed ({len(batch)} chunks skipped): {e}")
+                continue
 
             # Create results
             for chunk, embedding in zip(batch, batch_embeddings):
@@ -211,7 +217,10 @@ class CodeEmbedder:
             if i + batch_size < len(chunks):
                 self._logger.info(f"Processed {i + batch_size}/{len(chunks)} chunks")
 
-        self._logger.info("Embedding generation completed")
+        if failed_batches:
+            self._logger.warning(f"Embedding completed with {failed_batches} failed batches ({len(results)}/{len(chunks)} chunks embedded)")
+        else:
+            self._logger.info(f"Embedding generation completed: {len(results)} chunks")
         return results
 
     def embed_query(self, query: str) -> np.ndarray:
