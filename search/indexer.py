@@ -80,6 +80,7 @@ class CodeIndexManager:
             quantizer = faiss.IndexFlatIP(embedding_dimension)
             n_centroids = min(100, max(10, embedding_dimension // 8))  # Adaptive number of centroids
             self._index = faiss.IndexIVFFlat(quantizer, embedding_dimension, n_centroids)
+            self._index.make_direct_map()  # Enable reconstruct() for similar-chunk lookups
         else:
             raise ValueError(f"Unsupported index type: {index_type}")
         
@@ -260,11 +261,15 @@ class CodeIndexManager:
             return []
         
         # Get the embedding for this chunk
-        embedding = self._index.reconstruct(index_id)
-        
+        try:
+            embedding = self._index.reconstruct(index_id)
+        except RuntimeError:
+            # DirectMap not available (legacy IVF index without make_direct_map)
+            return []
+
         # Search for similar chunks (excluding the original)
         results = self.search(embedding, k + 1)
-        
+
         # Filter out the original chunk
         return [(cid, sim, meta) for cid, sim, meta in results if cid != chunk_id][:k]
     
